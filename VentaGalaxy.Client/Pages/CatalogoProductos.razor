@@ -1,0 +1,153 @@
+﻿@page "/CatalogoProductos"
+@attribute [Authorize(Roles = Constantes.RolCliente)]
+
+@inject IHomeProxy HomeProxy
+@inject IToastService ToastService
+@inject ICategoriaProxy CategoriaProxy
+@inject NavigationManager NavigationManager
+
+<h3 class="text-uppercase text-center my-4">Listado de Productos</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label for="nombre" class="form-label">Nombre</label>
+        <InputText @bind-Value="BusquedaRequest.Nombre" class="form-control" id="nombre" placeholder="Buscar por nombre" />
+    </div>
+    <div class="col-md-4">
+        <label for="categoria" class="form-label">Categoría</label>
+        <InputSelect id="categoria" class="form-select" @bind-Value="BusquedaRequest.CategoriaId">
+            <option value="">Todas</option>
+            @foreach (var item in Categorias)
+            {
+                <option value="@item.Id">@item.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">&nbsp;</label>
+        <button type="button" class="btn btn-primary w-100" @onclick="OnSearch">
+            <i class="bi bi-search me-1"></i>Buscar
+        </button>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    @if (Productos is { Count: > 0 })
+    {
+        @foreach (var item in Productos)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <img src="@item.Url" class="card-img-top" alt="@item.Producto" style="height: 200px; object-fit: cover;" />
+                    <div class="card-body text-center">
+                        <h5 class="card-title">@item.Producto</h5>
+                        <p class="card-text">@item.Descripcion</p>
+                        <div class="mb-2">
+                            <span class="badge bg-info">@item.Categoria</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-primary fw-bold">@item.PrecioVenta.ToString("C")</span>
+                        </div>
+                        <button type="button" class="btn btn-warning text-black" @onclick="() => InformacionProducto(item.Id)">
+                            Información
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <p class="text-center text-danger">No se encuentra stock de productos</p>
+    }
+</div>
+
+<div class="row justify-content-center mt-4">
+    <DataPager @ref="Paginador" Result="PagedResult" OnPageChanged="PaginaCambiada" OnPageSizeChanged="FilasPorPagina" />
+</div>
+
+<LoadingComponent IsLoading="IsLoading" />
+
+@code {
+
+    public bool IsLoading { get; set; }
+    public DataPager Paginador { get; set; } = default!;
+    public PagedResult<ProductoHomeDtoResponse> PagedResult { get; set; } = default!;
+    public BusquedaProductoHomeRequest BusquedaRequest { get; set; } = new BusquedaProductoHomeRequest();
+    private ICollection<ProductoHomeDtoResponse>? Productos { get; set; }
+    private ICollection<CategoriaDtoResponse> Categorias { get; set; } = new List<CategoriaDtoResponse>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+            PagedResult = new PagedResult<ProductoHomeDtoResponse>()
+                {
+                    CurrentPage = BusquedaRequest.Pagina,
+                    RowPerPage = BusquedaRequest.Filas
+                };
+
+            await OnSearch();
+
+            Categorias = await CategoriaProxy.ListAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnSearch()
+    {
+        try
+        {
+            IsLoading = true;
+            var response = await HomeProxy.ListarProductosHomeAsync(BusquedaRequest);
+            Productos = response.Data;
+
+            if (Productos is not null)
+            {
+                PagedResult.Results = Productos;
+                PagedResult.RowCount = Productos.Count;
+                PagedResult.TotalPages = response.TotalPages;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task PaginaCambiada()
+    {
+        IsLoading = true;
+        BusquedaRequest.Pagina = PagedResult.CurrentPage;
+        BusquedaRequest.Filas = PagedResult.RowPerPage;
+
+        await OnSearch();
+    }
+
+    private async Task FilasPorPagina()
+    {
+        BusquedaRequest.Pagina = PagedResult.CurrentPage;
+        BusquedaRequest.Filas = PagedResult.RowPerPage;
+        await OnSearch();
+    }
+
+
+    private void InformacionProducto(int id)
+    {
+        NavigationManager.NavigateTo($"/DetalleProducto/{id}");
+    }
+
+}

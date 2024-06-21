@@ -1,0 +1,45 @@
+﻿@page "/productos/nuevo"
+@inject IProductoProxy TallerProxy
+@inject ICategoriaProxy CategoriaProxy
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = Constantes.RolAdministrador)]
+
+<EditProductoComponent Categorias="Categorias" Titulo="Crear Producto" OnGuardar="OnGrabar" />
+
+<LoadingComponent IsLoading="IsLoading" />
+
+@code {
+
+    public ICollection<CategoriaDtoResponse> Categorias { get; set; } = new List<CategoriaDtoResponse>();
+    public bool IsLoading { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Categorias = await CategoriaProxy.ListAsync();
+    }
+
+    private async Task OnGrabar(ProductoDtoRequest request)
+    {
+        try
+        {
+            IsLoading = true;
+
+            await TallerProxy.CreateAsync(request);
+
+            ToastService.ShowInfo("Se guardo correctamente el taller");
+            NavigationManager.NavigateTo("productos/list");
+
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+   
+}

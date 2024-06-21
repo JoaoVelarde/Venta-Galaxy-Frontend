@@ -1,0 +1,63 @@
+﻿@page "/productos/editar/{Id:int}"
+@inject IProductoProxy ProductoProxy
+@inject ICategoriaProxy CategoriaProxy
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = Constantes.RolAdministrador)]
+
+<EditProductoComponent Categorias="Categorias" Titulo="Editar Producto"
+                     OnGuardar="OnGrabar" Request="Request" />
+
+<LoadingComponent IsLoading="IsLoading" />
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    public ICollection<CategoriaDtoResponse> Categorias { get; set; } = new List<CategoriaDtoResponse>();
+
+    private ProductoDtoRequest Request { get; set; } = new();
+
+    public bool IsLoading { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        Categorias = await CategoriaProxy.ListAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            Request = await ProductoProxy.FindByIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task OnGrabar(ProductoDtoRequest request)
+    {
+        try
+        {
+            IsLoading = true;
+
+            await ProductoProxy.UpdateAsync(Id, request);
+
+            ToastService.ShowInfo("Se actualizó correctamente el poducto");
+            NavigationManager.NavigateTo("productos/list");
+
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

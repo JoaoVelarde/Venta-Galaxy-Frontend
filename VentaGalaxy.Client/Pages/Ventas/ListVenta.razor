@@ -1,0 +1,198 @@
+﻿@page "/ventas/list"
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+@inject IVentaProxy Proxy
+@inject NavigationManager Nav
+@inject IToastService Toaster
+@inject SweetAlertService Swal
+@inject IJSRuntime JsRuntime
+@inject HttpClient HttpClient
+@inject IWebAssemblyHostEnvironment WebAssemblyHost
+
+<ListaGenerica TItem="VentaDetalleDtoResponse" Lista="Ventas" Titulo="Lista de Compras Realizadas">
+    <Filtros>
+        <div class="row">
+            <div class="col">
+                <div class="mb-3">
+                    <label for="nroVenta" class="form-label">NroVenta:</label>
+                    <InputText type="text" class="form-control" id="nroVenta" @bind-Value="BusquedaRequest.NroVenta" />
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-3">
+                    <label for="cliente" class="form-label">Cliente:</label>
+                    <InputText type="text" class="form-control" id="cliente" @bind-Value="BusquedaRequest.Cliente" />
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-3">
+                    <label for="producto" class="form-label">Producto:</label>
+                    <InputText type="text" class="form-control" id="producto" @bind-Value="BusquedaRequest.Producto" />
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3 justify-content-end">
+            <div class="col-auto">
+                <button class="btn btn-outline-primary" @onclick="OnSearch">
+                    <i class="bi bi-search me-1"></i>Buscar
+                </button>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-outline-primary" @onclick="OnLimpiar">
+                    <i class="bi bi-eraser-fill me-1"></i>Limpiar
+                </button>
+            </div>
+        </div>
+    </Filtros>
+    <Cabeceras>
+        <th>#</th>
+        <th>Cliente</th>
+        <th>NroVenta</th>
+        <th>Producto</th>
+        <th>Categoria</th>
+        <th>Cantidad</th>
+        <th>Precio Venta</th>
+        <th>FechaCompra</th>
+        <th>Acción</th>
+    </Cabeceras>
+    <Detalles>
+        <td>@context.Id</td>
+        <td>@context.Cliente</td>
+        <td>@context.NroVenta</td>
+        <td>@context.Producto</td>
+        <td>@context.Categoria</td>
+        <td>@context.Cantidad</td>
+        <td>@context.Precio</td>
+        <td>@context.FechaCompra</td>
+        <td>
+            <AuthorizeView Roles="@Constantes.RolAdministrador">
+                <Authorized Context="authorizedContext">
+                   @*  <button type="button" class="btn" @onclick="() => OnEditar(context.Id)">
+                        <i class="bi bi-pencil-fill"></i>
+                    </button> *@
+                    <button type="button" class="btn" @onclick="() => OnEliminar(context.Id)">
+                        <i class="bi bi-trash-fill"></i>
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </td>
+    </Detalles>
+</ListaGenerica>
+
+<DataPager @ref="Paginador" Result="PagedResult" OnPageChanged="PaginaCambiada" OnPageSizeChanged="FilasPorPagina"></DataPager>
+
+<LoadingComponent IsLoading="IsLoading" />
+
+@code {
+
+    public BusquedaVentaRequest BusquedaRequest { get; set; } = new()
+        {
+            Producto = null,
+            Cliente = null,
+            NroVenta = null,
+            Pagina = 1,
+            Filas = 5
+        };
+    public ICollection<VentaDetalleDtoResponse>? Ventas { get; set; }
+
+    public bool IsLoading { get; set; }
+
+    public DataPager Paginador { get; set; } = default!;
+
+    public PagedResult<VentaDetalleDtoResponse> PagedResult { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+ 
+        PagedResult = new PagedResult<VentaDetalleDtoResponse>()
+            {
+                CurrentPage = BusquedaRequest.Pagina,
+                RowPerPage = BusquedaRequest.Filas
+            };
+
+        await OnSearch();
+    }
+
+
+    private async Task OnSearch()
+    {
+        try
+
+        {
+            IsLoading = true;
+
+            var response = await Proxy.ListAsync(BusquedaRequest);
+
+            Ventas = response.Data;
+            if (Ventas is not null)
+            {
+                PagedResult.Results = Ventas;
+                PagedResult.RowCount = Ventas.Count;
+                PagedResult.TotalPages = response.TotalPages;
+            }
+        }
+        catch (Exception ex)
+        {
+            Toaster.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OnLimpiar()
+    {
+        BusquedaRequest = new() { Pagina = 1, Filas = 5 };
+    }
+
+    private async Task PaginaCambiada()
+    {
+        IsLoading = true;
+        BusquedaRequest.Pagina = PagedResult.CurrentPage;
+        BusquedaRequest.Filas = PagedResult.RowPerPage;
+        await OnSearch();
+    }
+
+    private async Task FilasPorPagina()
+    {
+        BusquedaRequest.Pagina = PagedResult.CurrentPage;
+        BusquedaRequest.Filas = PagedResult.RowPerPage;
+        await OnSearch();
+    }
+
+
+    
+    // private void OnEditar(int id)
+    // {
+    //     Nav.NavigateTo($"/ventas/editar/{id}");
+    // }
+
+    private async Task OnEliminar(int id)
+    {
+        try
+        {
+            var result = await Swal.FireAsync(new SweetAlertOptions
+            {
+                Text = "Desea eliminar la venta?",
+                Title = "Eliminar",
+                Icon = SweetAlertIcon.Question,
+                ShowCancelButton = true
+            });
+
+            if (result.IsConfirmed)
+            {
+                await Proxy.DeleteAsync(id);
+
+                Toaster.ShowInfo("Se anulo correctamente la venta");
+
+                await OnSearch();
+            }
+        }
+        catch (Exception ex)
+        {
+            Toaster.ShowError(ex.Message);
+        }
+    }
+
+
+}

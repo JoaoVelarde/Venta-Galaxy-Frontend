@@ -1,0 +1,66 @@
+﻿@inherits LayoutComponentBase
+
+<VentaGalaxyHeader/>
+<BlazoredToasts/>
+
+<div class="container-fluid">
+    <div class="row gx-2">
+        <div class="col-md-2 d-none d-md-block">
+            <aside class="d-flex flex-column flex-shrink-0 p-1 bg-light border border-dark">
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item">
+                        <NavLink href="index" class="nav-link link-dark d-flex align-items-center">
+                            <i class="bi bi-house me-1"></i>
+                            <span>Inicio</span>
+                        </NavLink>
+                    </li>
+                    <AuthorizeView Roles="@Constantes.RolAdministrador">
+                        <Authorized>
+                            <li class="nav-item">
+                                <NavLink href="categorias/list" class="nav-link link-dark d-flex align-items-center">
+                                    <i class="bi bi-tags me-1"></i>
+                                    <span>Categorias</span>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink href="productos/list" class="nav-link link-dark d-flex align-items-center">
+                                    <i class="bi bi-box-seam me-1"></i>
+                                    <span>Productos</span>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink href="clientes/list" class="nav-link link-dark d-flex align-items-center">
+                                    <i class="bi bi-person me-1"></i>
+                                    <span>Clientes</span>
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink href="ventas/list" class="nav-link link-dark d-flex align-items-center">
+                                    <i class="bi bi-clipboard-pulse me-1"></i>
+                                    <span>Ventas</span>
+                                </NavLink>
+                            </li>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="@Constantes.RolCliente">
+                        <li class="nav-item">
+                            <NavLink href="ventas/list" class="nav-link link-dark d-flex align-items-center">
+                                <i class="bi bi-clipboard-pulse me-1"></i>
+                                <span>Historial De Compras</span>
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink href="catalogoProductos" class="nav-link link-dark d-flex align-items-center">
+                                <i class="bi bi-cart-plus me-1"></i>
+                                <span>Productos</span>
+                            </NavLink>
+                        </li>
+                    </AuthorizeView>
+                </ul>
+            </aside>
+        </div>
+        <div class="col-md-10">
+            @Body
+        </div>
+    </div>
+</div>

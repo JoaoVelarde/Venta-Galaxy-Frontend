@@ -1,0 +1,34 @@
+﻿@page "/categorias/nuevo"
+@inject ICategoriaProxy CargoProxy
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = Constantes.RolAdministrador)]
+
+<EditCategoriaComponent Request="RequestNuevo" Titulo="Crear Categoria" OnGrabar="OnGrabar" />
+
+<LoadingComponent IsLoading="IsLoading" />
+
+@code {
+
+    private CategoriaDtoRequest RequestNuevo { get; set; } = new();
+    public bool IsLoading { get; set; }
+
+    private async Task OnGrabar()
+    {
+        try
+        {
+            IsLoading = true;
+            await CargoProxy.CreateAsync(RequestNuevo);
+            ToastService.ShowInfo("Se creó el cargo correctamente");
+            NavigationManager.NavigateTo("/categorias/list");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

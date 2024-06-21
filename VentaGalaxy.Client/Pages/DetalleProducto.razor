@@ -1,0 +1,148 @@
+﻿@page "/DetalleProducto/{Id:int}"
+@using System.ComponentModel.DataAnnotations
+
+@inject SweetAlertService Swal
+@inject IVentaProxy VentaProxy
+@inject IHomeProxy HomeProxy
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+@attribute [Authorize(Roles = Constantes.RolCliente)]
+
+<h2>
+    <NavLink href="CatalogoProductos" class="text-black me-2"><i class="bi bi-backspace me-1"></i></NavLink>@Producto?.Producto
+</h2>
+@if (Producto is null)
+{
+    <p class="text-danger-emphasis">No hay datos para mostrar</p>
+}
+else
+{
+    <div class="container p-0">
+        <div class="row border border-black border-1 mt-5">
+            <div class="col">
+                    <img alt="@Producto.Producto" src="@Producto.Url" style="width: 30rem;" />
+            </div>
+            <div class="col">
+                <p class="mt-5 text-dark-emphasis">@Producto.Descripcion</p>
+                <p>
+                    <strong class="me-2">Categoria:</strong>@Producto.Categoria
+                </p>
+                <div class="d-block justify-content-between">
+                    <p>
+                        <strong class="me-2">Descripcion:</strong>@Producto.Descripcion
+                    </p>
+                </div>
+                <div class="d-block justify-content-between">
+                    <p>
+                        <strong class="me-2">Precio:</strong>@Producto.PrecioVenta
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-5 justify-content-between">
+            <div class="col-md-8">
+            </div>
+            <div class="col-md-2">
+                <label for="cantidad" class="form-label">Cantidad</label>
+                <InputNumber @bind-Value="CantidadProducto" class="form-control" id="cantidad" step="1" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-primary w-100" @onclick="Comprar">
+                    <i class="bi bi-arrow-right-square me-1"></i>Comprar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+
+    private int CantidadProducto { get; set; } = 1;
+
+    private bool IsLoading { get; set; }
+    private ProductoHomeDtoResponse? Producto { get; set; }
+    private ICollection<VentaDetalleDtoRequest> Productos { get; set; } = new List<VentaDetalleDtoRequest>(); 
+    private VentaMasivaDtoRequest VentaMasiva { get; set; } = new VentaMasivaDtoRequest(); 
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            var response = await HomeProxy.GetProductoHomeAsync(Id);
+            Producto = response.Data;
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+
+    private async Task Comprar()
+    {
+        try
+        {
+            if (Producto is null) return;
+
+            if (CantidadProducto <= 0)
+            {
+                ToastService.ShowError("La cantidad debe ser mayor a 1.");
+                return;
+            }
+
+            var result = await Swal.FireAsync(new SweetAlertOptions
+            {
+                Text = "¿Desea comprar el producto?",
+                Title = "Comprar Producto",
+                Icon = SweetAlertIcon.Question,
+                ShowCancelButton = true
+            });
+
+            if (!result.IsConfirmed) return;
+
+            IsLoading = true;
+
+            Productos = new List<VentaDetalleDtoRequest>
+            {
+                new VentaDetalleDtoRequest
+                {
+                    Cantidad = CantidadProducto,
+                    ProductoId = Id,
+                    Precio = Producto.PrecioVenta
+                }
+            };
+
+            if (VentaMasiva is null)
+            {
+                VentaMasiva = new VentaMasivaDtoRequest();
+            }
+
+            VentaMasiva.Productos = Productos;
+
+            var numeroVenta = await VentaProxy.VentaMasivaAsync(VentaMasiva);
+
+            await Swal.FireAsync(new SweetAlertOptions
+            {
+                Title = "Compra realizada con éxito",
+                Text = $"Número de venta: {numeroVenta}",
+                Icon = SweetAlertIcon.Success
+            });
+
+            NavigationManager.NavigateTo("/CatalogoProductos");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+
